@@ -1,32 +1,67 @@
 #!/bin/bash
 
-# Production startup script
+# Smart production launcher - automatically detects Docker availability
 set -e
 
-echo "Starting production environment..."
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo "Error: Docker is not running. Please start Docker and try again."
-    exit 1
-fi
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check if .env file exists
-if [ ! -f .env ]; then
-    echo "Error: .env file not found. Please create one from .env.example"
-    exit 1
-fi
-
-# Build and start services
-echo "Building and starting production services..."
-docker-compose up --build -d
-
-echo "Production environment started successfully!"
-echo "Frontend: http://localhost"
-echo "Backend API: http://localhost:8000"
-echo "API Docs: http://localhost:8000/docs"
-
-# Show logs
+echo -e "${BLUE}Python Template - Production Launcher${NC}"
 echo ""
-echo "Showing logs (Ctrl+C to exit)..."
-docker-compose logs -f
+
+# Check if Docker is available and running
+DOCKER_AVAILABLE=false
+if command -v docker &> /dev/null; then
+    if docker info > /dev/null 2>&1; then
+        DOCKER_AVAILABLE=true
+        echo -e "${GREEN}✓ Docker is available and running${NC}"
+    else
+        echo -e "${YELLOW}⚠ Docker is installed but not running${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ Docker is not installed${NC}"
+fi
+
+echo ""
+
+# If Docker is available, ask user preference
+if [ "$DOCKER_AVAILABLE" = true ]; then
+    echo "Choose startup mode:"
+    echo "  1) Docker (Recommended - production-ready)"
+    echo "  2) Local (Direct on your machine)"
+    echo "  3) Auto-select Docker"
+    echo ""
+    read -p "Enter choice [1-3] (default: 1): " choice
+    choice=${choice:-1}
+
+    case $choice in
+        1)
+            echo -e "${GREEN}Starting with Docker...${NC}"
+            exec "$SCRIPT_DIR/prod-docker.sh"
+            ;;
+        2)
+            echo -e "${GREEN}Starting locally...${NC}"
+            exec "$SCRIPT_DIR/prod-local.sh"
+            ;;
+        3)
+            echo -e "${GREEN}Auto-selecting Docker...${NC}"
+            exec "$SCRIPT_DIR/prod-docker.sh"
+            ;;
+        *)
+            echo -e "${RED}Invalid choice. Exiting.${NC}"
+            exit 1
+            ;;
+    esac
+else
+    # Docker not available, use local mode
+    echo -e "${BLUE}Docker is not available. Starting in local mode...${NC}"
+    echo ""
+    exec "$SCRIPT_DIR/prod-local.sh"
+fi

@@ -66,6 +66,11 @@ frontend/.vite/
 *.log
 logs/
 
+# Process management
+.dev-pids
+.prod-pids
+backend.log
+
 # Docker
 *.pid
 *.seed
